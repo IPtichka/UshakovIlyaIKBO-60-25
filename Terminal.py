@@ -45,7 +45,14 @@ class Emulator:
             self.print_output(f"cd: команда-заглушка. Аргументы: {cmd_args}")
         else:
             self.print_output(f"Ошибка: неизвестная команда '{cmd}'")
+    def print_output(self, text):
+        self.output.config(state='normal')
+        self.output.insert(tk.END, text + "\n")
+        self.output.see(tk.END)
+        self.output.config(state='disabled')
 
+
+    
 if __name__ == "__main__":
     root = tk.Tk()
     Emulator(root)
