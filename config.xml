@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<config>
+    <vfs_path>./data/vfs.json</vfs_path>
+    <startup_script>./startup/simple.txt</startup_script>
+</config>
