@@ -1,0 +1,9 @@
+{
+  "name": "root",
+  "type": "dir",
+  "children": [
+    { "name": "readme.txt", "type": "file", "content": "Это корневой readme" },
+    { "name": "notes.txt", "type": "file", "content": "Заметки" },
+    { "name": "logo.png", "type": "file", "encoding": "base64", "content": "iVBORw0KGgoAAAANSUhEUg==" }
+  ]
+}

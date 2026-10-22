@@ -1,0 +1,34 @@
+{
+  "name": "root",
+  "type": "dir",
+  "children": [
+    {
+      "name": "home",
+      "type": "dir",
+      "children": [
+        {
+          "name": "user",
+          "type": "dir",
+          "children": [
+            {
+              "name": "docs",
+              "type": "dir",
+              "children": [
+                { "name": "readme.md", "type": "file", "content": "# Hey" },
+                { "name": "image.png", "type": "file", "encoding": "base64", "content": "iVBORw0KGgo=" }
+              ]
+            },
+            { "name": "notes.txt", "type": "file", "content": "привет" }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "etc",
+      "type": "dir",
+      "children": [
+        { "name": "hostname", "type": "file", "content": "myvfs" }
+      ]
+    }
+  ]
+}

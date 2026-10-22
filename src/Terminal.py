@@ -5,8 +5,13 @@ import sys
 import xml.etree.ElementTree as ET
 import tkinter as tk
 import shlex
+import json
 
-def parse_args():
+def load_vfs(path:str) -> dict:
+    with open(path, encoding="utf-8") as f:
+        return json.load(f)
+
+def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--vfs-path")
     p.add_argument("--startup-script")
@@ -14,7 +19,6 @@ def parse_args():
     return p.parse_args()
 
 def load_config(path):
-    """Читает XML. При ошибке бросает исключение с текстом."""
     root = ET.parse(path).getroot()
     result = {}
     for tag in ("vfs_path", "startup_script"):
@@ -24,9 +28,10 @@ def load_config(path):
     return result
 
 class Emulator:
-    def __init__(self, root: tk, params, vfs_name="home"):
+    def __init__(self, root: tk, params: map, vfs_data: dict, vfs_name="home"):
         self.root = root
         self.vfs_name = vfs_name
+        self.vfs_data = vfs_data
         self.root.title(f"VFS: {vfs_name}")
         self.root.geometry("800x600")
         self.output = scrolledtext.ScrolledText(root, state='disabled', wrap='word')
@@ -46,6 +51,19 @@ class Emulator:
         self.print_output("")
 
         self.run_startup()
+    def ls(self, node=None, prefix=""):
+        if node is None:
+            node = self.vfs_data
+
+        name = node.get("name", "?")
+        if node.get("type") == "dir":
+            name += "/"
+        self.print_output(prefix + name)
+
+        if node.get("type") == "dir":
+            for child in node.get("children", []):
+                self.ls(child, prefix + "  ")
+
     def process_command(self, event=None):
         cmd_line = self.entry.get().strip()
         if not cmd_line:
@@ -68,12 +86,12 @@ class Emulator:
         if cmd == "exit":
             self.root.quit()
         elif cmd == "ls":
-            self.print_output(f"ls: команда-заглушка. Аргументы: {cmd_args}")
+            self.ls()
         elif cmd == "cd":
             self.print_output(f"cd: команда-заглушка. Аргументы: {cmd_args}")
         else:
             self.print_output(f"Ошибка: неизвестная команда '{cmd}'")
-    def print_output(self, text):
+    def print_output(self, text: str):
         self.output.config(state='normal')
         self.output.insert(tk.END, text + "\n")
         self.output.see(tk.END)
@@ -102,7 +120,7 @@ class Emulator:
                 break
         self.print_output("--- Скрипт завершён ---\n")
 
-    def execute_from_script(self, line):
+    def execute_from_script(self, line: str):
         try:
             args = shlex.split(line)
         except ValueError as e:
@@ -114,9 +132,9 @@ class Emulator:
         if cmd == "exit":
             return
         elif cmd == "ls":
-            self.print_output(f"ls: команда-заглушка. Аргументы: {rest}")
+            self.ls()
         elif cmd == "cd":
-            self.print_output(f"cd: команда-заглушка. Аргументы: {rest}")
+            self.print_output(f"cd Аргументы: {rest}")
         else:
             self.print_output(f"Ошибка: неизвестная команда '{cmd}'")
 
@@ -136,15 +154,24 @@ def main():
             print(f"Ошибка: некорректный XML в {args.config}: {e}", file=sys.stderr)
             sys.exit(1)
 
-    # Приоритет: CLI важнее конфига
+    
     params = {
         "vfs_path": args.vfs_path or cfg.get("vfs_path"),
         "startup_script": args.startup_script or cfg.get("startup_script"),
         "config": args.config,
     }
 
+    try:
+        vfs_data = load_vfs(params["vfs_path"])
+    except FileNotFoundError:
+        print(f"Ошибка: VFS не найдена: {params['vfs_path']}", file=sys.stderr)
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Ошибка: некорректный JSON: {e}", file=sys.stderr)
+        sys.exit(1)
+
     root = tk.Tk()
-    Emulator(root, params)
+    Emulator(root, params, vfs_data)
     root.mainloop()
     
 if __name__ == "__main__":
