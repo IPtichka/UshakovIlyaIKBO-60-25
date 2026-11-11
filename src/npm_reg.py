@@ -8,7 +8,7 @@ import json
 import urllib.error
 import urllib.parse
 import urllib.request
-from typing import Dict
+from http import HTTPStatus
 
 DEFAULT_TIMEOUT = 15
 
