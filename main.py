@@ -2,7 +2,7 @@
 
 Читает пользовательские параметры из INI-файла, валидирует каждый
 и печатает их в формате ``ключ = значение``. При ошибках конфигурации
-печатает сообщение в stderr и завершается с кодом 2.
+печатает сообщение в stderr и завершается с кодом 2 или 3 (ошибка в парсинге npm).
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
+from npm_reg import NpmRegistryError, fetch_direct_dependencies
 
 # Имя единственной секции INI-файла и полный набор ключей в ней.
 SECTION = "app"
@@ -253,6 +254,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def print_dependencies(
+    package_name: str,
+    dependencies: dict[str, str],
+) -> None:
+    """Напечатать прямые зависимости в формате «имя (диапазон)»."""
+    if not dependencies:
+        print(f"Package {package_name!r} has no direct dependencies.")
+        return
+    print(f"Direct dependencies of {package_name!r}:")
+    for dep_name, dep_range in dependencies.items():
+        print(f"  - {dep_name} ({dep_range})")
+
+
 def main(argv: list[str] | None = None) -> int:
     """Точка входа. Возвращает код процесса: 0 — успех, 2 — ошибка."""
     args = build_parser().parse_args(argv)
@@ -261,7 +275,24 @@ def main(argv: list[str] | None = None) -> int:
     except ConfigError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    print_config(config)
+
+    if config.repo_mode != "url":
+        print(
+            "error: npm registry requires repo_mode = url "
+            f"(got {config.repo_mode!r})",
+            file=sys.stderr,
+        )
+        return 2
+
+    try:
+        dependencies = fetch_direct_dependencies(
+            config.repository,
+            config.package_name,
+        )
+    except NpmRegistryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    print_dependencies(config.package_name, dependencies)
     return 0
 
 
