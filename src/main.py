@@ -14,8 +14,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from npm_reg import NpmRegistryError, fetch_direct_dependencies
-from graph import RepositoryError,build_graph,load_repository_file,render_dot,render_graph,render_order,topological_order
+from src.npm_reg import NpmRegistryError, fetch_direct_dependencies
+from src.graph import RepositoryError,build_graph,load_repository_file,render_dot,render_graph,render_order,topological_order
 import subprocess
 
 
@@ -348,19 +348,16 @@ def main(argv: list[str] | None = None) -> int:
         except RepositoryError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 3
-
         def fetch(name: str) -> dict[str, str]:
             return {dep: "*" for dep in repository.get(name, [])}
     else:
         cache: dict[str, dict[str, str]] = {}
-
         def fetch(name: str) -> dict[str, str]:
             if name not in cache:
                 cache[name] = fetch_direct_dependencies(
                     config.repository, name
                 )
             return cache[name]
-
     try:
         graph = build_graph(
             root=config.package_name,
@@ -377,10 +374,8 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if args.dot or args.png:
         dot_source = render_dot(graph)
-
         if args.png:
             return _render_png(dot_source, args.png)
-
         print(dot_source)
         return 0
     print(render_graph(graph))
