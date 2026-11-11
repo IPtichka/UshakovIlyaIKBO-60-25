@@ -2,7 +2,7 @@
 
 Читает пользовательские параметры из INI-файла, валидирует каждый
 и печатает их в формате ``ключ = значение``. При ошибках конфигурации
-печатает сообщение в stderr и завершается с кодом 2 или 3 (ошибка в парсинге npm).
+печатает сообщение в stderr и завершается с кодом 2 или 3 (ошибка в парсинге npm или в графе).
 """
 
 from __future__ import annotations
@@ -15,6 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from npm_reg import NpmRegistryError, fetch_direct_dependencies
+from graph import RepositoryError, build_graph, load_repository_file, render_graph
+
 
 # Имя единственной секции INI-файла и полный набор ключей в ней.
 SECTION = "app"
@@ -268,7 +270,7 @@ def print_dependencies(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Точка входа. Возвращает код процесса: 0 — успех, 2 — ошибка."""
+    """Точка входа. Возвращает код процесса: 0 — успех, 2 — ошибка, 3 — репозиторий/граф."""
     args = build_parser().parse_args(argv)
     try:
         config = load_config(Path(args.config))
@@ -276,23 +278,43 @@ def main(argv: list[str] | None = None) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    if config.repo_mode != "url":
-        print(
-            "error: npm registry requires repo_mode = url "
-            f"(got {config.repo_mode!r})",
-            file=sys.stderr,
-        )
-        return 2
+    repository_path = Path(config.repository)
+    use_file = (
+        config.repo_mode == "file"
+        or (config.repo_mode == "auto" and repository_path.is_file())
+    )
+
+    if use_file:
+        try:
+            repository = load_repository_file(repository_path)
+        except RepositoryError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 3
+
+        def fetch(name: str) -> dict[str, str]:
+            return {dep: "*" for dep in repository.get(name, [])}
+    else:
+        cache: dict[str, dict[str, str]] = {}
+
+        def fetch(name: str) -> dict[str, str]:
+            if name not in cache:
+                cache[name] = fetch_direct_dependencies(
+                    config.repository, name
+                )
+            return cache[name]
 
     try:
-        dependencies = fetch_direct_dependencies(
-            config.repository,
-            config.package_name,
+        graph = build_graph(
+            root=config.package_name,
+            max_depth=config.max_depth,
+            filter_substring=config.filter_substring,
+            fetch=fetch,
         )
     except NpmRegistryError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 3
-    print_dependencies(config.package_name, dependencies)
+
+    print(render_graph(graph))
     return 0
 
 
