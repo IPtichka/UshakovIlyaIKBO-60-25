@@ -193,3 +193,75 @@ def render_graph(graph: Graph) -> str:
     else:
         lines.append("Back edges (cycles): none")
     return "\n".join(lines)
+
+
+def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
+    """Вернуть порядок загрузки пакетов (зависимости раньше зависимых).
+
+    Возвращает пару:
+        order  — список имён в порядке загрузки;
+        broken — рёбра, которые пришлось разорвать из-за циклов.
+
+    Алгоритм: DFS с тремя цветами.
+    - «белый» (не посещён) → идём вглубь;
+    - «серый» (в текущем стеке) → нашли обратное ребро, цикл;
+    - «чёрный» (обработан) → узел уже добавлен в результат.
+
+    Для цикла ребро попадает в `broken`, а узел всё равно добавляется
+    в результат после своих зависимостей — так порядок остаётся
+    максимально близким к топологическому.
+    """
+    WHITE, GRAY, BLACK = 0, 1, 2
+    color: dict[str, int] = {name: WHITE for name in graph.nodes}
+    order: list[str] = []
+    broken: list[tuple[str, str]] = []
+
+    children: dict[str, list[str]] = {name: [] for name in graph.nodes}
+    for src, dst in graph.edges:
+        children[src].append(dst)
+
+    def visit(name: str) -> None:
+        if color[name] == BLACK:
+            return
+        if color[name] == GRAY:
+            return
+        color[name] = GRAY
+        for child in children[name]:
+            if color[child] == GRAY:
+                broken.append((name, child))
+                continue
+            visit(child)
+        color[name] = BLACK
+        order.append(name)
+
+    for name in graph.nodes:
+        visit(name)
+
+    return order, broken
+
+
+def render_order(
+    graph: Graph,
+    order: list[str],
+    broken: list[tuple[str, str]],
+) -> str:
+    """Сформировать текстовое представление порядка загрузки."""
+    lines: list[str] = []
+    lines.append(
+        f"Load order for {graph.root!r} "
+        f"(max_depth={graph.max_depth}, "
+        f"filter={graph.filter_substring!r})"
+    )
+    lines.append("")
+    lines.append(f"Order ({len(order)} packages):")
+    for index, name in enumerate(order, start=1):
+        depth = graph.nodes[name].depth
+        lines.append(f"  {index:>2}. {name} (depth {depth})")
+    lines.append("")
+    if broken:
+        lines.append(f"Broken edges (cycles) ({len(broken)}):")
+        for src, dst in broken:
+            lines.append(f"  {src} -> {dst} (cycle, order is approximate)")
+    else:
+        lines.append("Broken edges (cycles): none")
+    return "\n".join(lines)

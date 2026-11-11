@@ -16,6 +16,8 @@ from pathlib import Path
 from urllib.parse import urlparse
 from npm_reg import NpmRegistryError, fetch_direct_dependencies
 from graph import RepositoryError, build_graph, load_repository_file, render_graph
+from graph import RepositoryError, build_graph, load_repository_file, render_graph, render_order, topological_order
+
 
 
 # Имя единственной секции INI-файла и полный набор ключей в ней.
@@ -253,6 +255,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--config",
         default="config.ini"
     )
+    parser.add_argument(
+        "--order",
+        action="store_true"
+    )
     return parser
 
 
@@ -313,7 +319,10 @@ def main(argv: list[str] | None = None) -> int:
     except NpmRegistryError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 3
-
+    if args.order:
+        order, broken = topological_order(graph)
+        print(render_order(graph, order, broken))
+        return 0
     print(render_graph(graph))
     return 0
 

@@ -12,9 +12,17 @@ echo filter_substring = _
 ) > _test_cycles.ini
 
 echo === testcycle.json: cycles C -^> A and E -^> A ===
+echo.
+echo --- GRAPH ---
 py main.py -c _test_cycles.ini
-set "EXITCODE=%ERRORLEVEL%"
-echo exit code: %EXITCODE%
+set "EXITCODE1=%ERRORLEVEL%"
+echo exit code: %EXITCODE1%
+echo.
+echo --- LOAD ORDER ---
+py main.py -c _test_cycles.ini --order
+set "EXITCODE2=%ERRORLEVEL%"
+echo exit code: %EXITCODE2%
+echo.
 
 del _test_cycles.ini
 pause
