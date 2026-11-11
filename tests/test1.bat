@@ -14,12 +14,12 @@ echo filter_substring = _
 echo === testrep.json: A -^> B, A -^> C, B -^> D, C -^> D, D -^> E ===
 echo.
 echo --- GRAPH ---
-py main.py -c _test_simple.ini
+py src\main.py -c _test_simple.ini
 set "EXITCODE1=%ERRORLEVEL%"
 echo exit code: %EXITCODE1%
 echo.
 echo --- LOAD ORDER ---
-py main.py -c _test_simple.ini --order
+py src\main.py -c _test_simple.ini --order
 set "EXITCODE2=%ERRORLEVEL%"
 echo exit code: %EXITCODE2%
 echo.

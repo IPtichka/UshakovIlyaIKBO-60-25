@@ -265,3 +265,27 @@ def render_order(
     else:
         lines.append("Broken edges (cycles): none")
     return "\n".join(lines)
+
+
+def render_dot(graph: Graph) -> str:
+    """Сформировать DOT-представление графа для Graphviz."""
+    lines: list[str] = []
+    lines.append("digraph deps {")
+    lines.append('    rankdir="LR";')
+    lines.append('    node [shape=box, fontname="Helvetica"];')
+
+    for name, node in graph.nodes.items():
+        if name == graph.root:
+            attrs = 'style="bold,filled", fillcolor="lightblue"'
+        else:
+            attrs = f'label="{name}\\n(depth {node.depth})"'
+        lines.append(f'    "{name}" [{attrs}];')
+
+    for src, dst in graph.edges:
+        style = ' [style=dashed, color=red]'
+        if (src, dst) in graph.cycles:
+            style = ' [color=red, penwidth=2, label="cycle"]'
+        lines.append(f'    "{src}" -> "{dst}"{style};')
+
+    lines.append("}")
+    return "\n".join(lines)

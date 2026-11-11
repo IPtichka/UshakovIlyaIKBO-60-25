@@ -15,8 +15,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from npm_reg import NpmRegistryError, fetch_direct_dependencies
-from graph import RepositoryError, build_graph, load_repository_file, render_graph
-from graph import RepositoryError, build_graph, load_repository_file, render_graph, render_order, topological_order
+from graph import RepositoryError,build_graph,load_repository_file,render_dot,render_graph,render_order,topological_order
+import subprocess
 
 
 
@@ -259,8 +259,60 @@ def build_parser() -> argparse.ArgumentParser:
         "--order",
         action="store_true"
     )
+    parser.add_argument(
+        "--dot",
+        action="store_true",
+        help="print Graphviz DOT source instead of text graph",
+    )
+    parser.add_argument(
+        "--png",
+        metavar="PATH",
+        help="render graph to PNG using Graphviz 'dot'",
+    )
     return parser
 
+
+def _render_png(dot_source: str, png_path: str) -> int:
+    """Отрисовать DOT в PNG через Graphviz и вывести на экран."""
+    try:
+        subprocess.run(
+            ["dot", "-Tpng", "-o", png_path],
+            input=dot_source.encode("utf-8"),
+            check=True,
+            capture_output=True,
+        )
+    except FileNotFoundError:
+        print(
+            "error: Graphviz 'dot' not found in PATH. "
+            "Install Graphviz from https://graphviz.org/download/",
+            file=sys.stderr,
+        )
+        return 4
+    except subprocess.CalledProcessError as exc:
+        print(
+            f"error: dot failed: {exc.stderr.decode('utf-8', 'replace')}",
+            file=sys.stderr,
+        )
+        return 4
+
+    print(f"PNG written to {png_path}")
+    _open_image(png_path)
+    return 0
+
+
+def _open_image(path: str) -> None:
+    """Открыть изображение штатным просмотрщиком ОС."""
+    try:
+        if sys.platform == "win32":
+            import os
+            os.startfile(path)  # type: ignore[attr-defined]
+        elif sys.platform == "darwin":
+            subprocess.run(["open", path], check=False)
+        else:
+            subprocess.run(["xdg-open", path], check=False)
+    except OSError as exc:
+        print(f"warning: could not open {path}: {exc}", file=sys.stderr)
+        
 
 def print_dependencies(
     package_name: str,
@@ -322,6 +374,14 @@ def main(argv: list[str] | None = None) -> int:
     if args.order:
         order, broken = topological_order(graph)
         print(render_order(graph, order, broken))
+        return 0
+    if args.dot or args.png:
+        dot_source = render_dot(graph)
+
+        if args.png:
+            return _render_png(dot_source, args.png)
+
+        print(dot_source)
         return 0
     print(render_graph(graph))
     return 0

@@ -25,7 +25,7 @@ echo filter_substring = _
 ) > _test_deep.ini
 
 echo --- GRAPH, max_depth = %~1 ---
-py main.py -c _test_deep.ini
+py src\main.py -c _test_deep.ini
 set "EXITCODE=%ERRORLEVEL%"
 echo exit code: %EXITCODE%
 echo.
@@ -42,7 +42,7 @@ echo filter_substring = _
 ) > _test_deep.ini
 
 echo --- LOAD ORDER, max_depth = %~1 ---
-py main.py -c _test_deep.ini --order
+py src\main.py -c _test_deep.ini --order
 set "EXITCODE=%ERRORLEVEL%"
 echo exit code: %EXITCODE%
 echo.

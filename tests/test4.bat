@@ -25,7 +25,7 @@ echo filter_substring = %~1
 ) > _test_filter.ini
 
 echo --- GRAPH, filter_substring = '%~1' ---
-py main.py -c _test_filter.ini
+py src\main.py -c _test_filter.ini
 set "EXITCODE=%ERRORLEVEL%"
 echo exit code: %EXITCODE%
 echo.
@@ -42,7 +42,7 @@ echo filter_substring = %~1
 ) > _test_filter.ini
 
 echo --- LOAD ORDER, filter_substring = '%~1' ---
-py main.py -c _test_filter.ini --order
+py src\main.py -c _test_filter.ini --order
 set "EXITCODE=%ERRORLEVEL%"
 echo exit code: %EXITCODE%
 echo.
