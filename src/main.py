@@ -2,7 +2,8 @@
 
 Читает пользовательские параметры из INI-файла, валидирует каждый
 и печатает их в формате ``ключ = значение``. При ошибках конфигурации
-печатает сообщение в stderr и завершается с кодом 2 или 3 (ошибка в парсинге npm или в графе).
+печатает сообщение в stderr и завершается
+с кодом 2 или 3 (ошибка в парсинге npm или в графе).
 """
 
 from __future__ import annotations
@@ -15,9 +16,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
 from src.npm_reg import NpmRegistryError, fetch_direct_dependencies
-from src.graph import RepositoryError,build_graph,load_repository_file,render_dot,render_graph,render_order,topological_order
+from src.graph import RepositoryError, render_dot, render_graph
+from src.graph import build_graph, load_repository_file
+from src.graph import render_order, topological_order
 import subprocess
-
 
 
 # Имя единственной секции INI-файла и полный набор ключей в ней.
@@ -77,7 +79,9 @@ def _is_url(value: str) -> bool:
 
 
 def _validate_package_name(value: str) -> str:
-    """Проверить имя пакета и вернуть его без окружающих пробелов."""
+    """
+    Проверить имя пакета и вернуть его без окружающих пробелов.
+    """
     value = value.strip()
     if not value:
         raise ConfigError("package_name must not be empty")
@@ -312,7 +316,7 @@ def _open_image(path: str) -> None:
             subprocess.run(["xdg-open", path], check=False)
     except OSError as exc:
         print(f"warning: could not open {path}: {exc}", file=sys.stderr)
-        
+
 
 def print_dependencies(
     package_name: str,
@@ -328,7 +332,10 @@ def print_dependencies(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Точка входа. Возвращает код процесса: 0 — успех, 2 — ошибка, 3 — репозиторий/граф."""
+    """
+    Точка входа. Возвращает код процесса:
+    0 — успех, 2 — ошибка, 3 — репозиторий/граф.
+    """
     args = build_parser().parse_args(argv)
     try:
         config = load_config(Path(args.config))
@@ -348,10 +355,12 @@ def main(argv: list[str] | None = None) -> int:
         except RepositoryError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 3
+
         def fetch(name: str) -> dict[str, str]:
             return {dep: "*" for dep in repository.get(name, [])}
     else:
         cache: dict[str, dict[str, str]] = {}
+
         def fetch(name: str) -> dict[str, str]:
             if name not in cache:
                 cache[name] = fetch_direct_dependencies(

@@ -1,7 +1,6 @@
 """Построение графа зависимостей рекурсивным BFS."""
 
 from __future__ import annotations
-
 import json
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -57,14 +56,12 @@ class Graph:
 
 def load_repository_file(path: Path) -> dict[str, list[str]]:
     """Загрузить тестовый репозиторий из JSON.
-
     Формат: ``{"PACKAGE": ["DEP1", "DEP2"], ...}``. Имена пакетов —
     произвольные непустые строки; в тестовых примерах используются
     большие латинские буквы.
     """
     if not path.exists():
         raise RepositoryError(f"repository file not found: {path}")
-
     try:
         with path.open("r", encoding="utf-8") as stream:
             data = json.load(stream)
@@ -197,16 +194,13 @@ def render_graph(graph: Graph) -> str:
 
 def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
     """Вернуть порядок загрузки пакетов (зависимости раньше зависимых).
-
     Возвращает пару:
         order  — список имён в порядке загрузки;
         broken — рёбра, которые пришлось разорвать из-за циклов.
-
     Алгоритм: DFS с тремя цветами.
     - «белый» (не посещён) → идём вглубь;
     - «серый» (в текущем стеке) → нашли обратное ребро, цикл;
     - «чёрный» (обработан) → узел уже добавлен в результат.
-
     Для цикла ребро попадает в `broken`, а узел всё равно добавляется
     в результат после своих зависимостей — так порядок остаётся
     максимально близким к топологическому.
@@ -215,7 +209,6 @@ def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
     color: dict[str, int] = {name: WHITE for name in graph.nodes}
     order: list[str] = []
     broken: list[tuple[str, str]] = []
-
     children: dict[str, list[str]] = {name: [] for name in graph.nodes}
     for src, dst in graph.edges:
         children[src].append(dst)
@@ -233,7 +226,6 @@ def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
             visit(child)
         color[name] = BLACK
         order.append(name)
-
     for name in graph.nodes:
         visit(name)
 
