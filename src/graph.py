@@ -205,8 +205,8 @@ def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
     в результат после своих зависимостей — так порядок остаётся
     максимально близким к топологическому.
     """
-    WHITE, GRAY, BLACK = 0, 1, 2
-    color: dict[str, int] = {name: WHITE for name in graph.nodes}
+    white, gray, black = 0, 1, 2
+    color: dict[str, int] = {name: white for name in graph.nodes}
     order: list[str] = []
     broken: list[tuple[str, str]] = []
     children: dict[str, list[str]] = {name: [] for name in graph.nodes}
@@ -214,17 +214,17 @@ def topological_order(graph: Graph) -> tuple[list[str], list[tuple[str, str]]]:
         children[src].append(dst)
 
     def visit(name: str) -> None:
-        if color[name] == BLACK:
+        if color[name] == black:
             return
-        if color[name] == GRAY:
+        if color[name] == gray:
             return
-        color[name] = GRAY
+        color[name] = gray
         for child in children[name]:
-            if color[child] == GRAY:
+            if color[child] == gray:
                 broken.append((name, child))
                 continue
             visit(child)
-        color[name] = BLACK
+        color[name] = black
         order.append(name)
     for name in graph.nodes:
         visit(name)

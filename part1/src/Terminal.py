@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import scrolledtext
 import argparse
 import sys
-import xml.etree.ElementTree as ET
+import xml.etree.ElementTree as et
 import tkinter as tk
 import shlex
 import json
@@ -19,7 +19,7 @@ def parse_args() -> argparse.Namespace:
     return p.parse_args()
 
 def load_config(path):
-    root = ET.parse(path).getroot()
+    root = et.parse(path).getroot()
     result = {}
     for tag in ("vfs_path", "startup_script"):
         node = root.find(tag)
@@ -150,7 +150,7 @@ def main():
         except FileNotFoundError:
             print(f"Ошибка: конфиг не найден: {args.config}", file=sys.stderr)
             sys.exit(1)
-        except ET.ParseError as e:
+        except et.ParseError as e:
             print(f"Ошибка: некорректный XML в {args.config}: {e}", file=sys.stderr)
             sys.exit(1)
 
