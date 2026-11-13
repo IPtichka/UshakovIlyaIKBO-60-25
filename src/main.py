@@ -15,10 +15,10 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
-from src.npm_reg import NpmRegistryError, fetch_direct_dependencies
-from src.graph import RepositoryError, render_dot, render_graph
-from src.graph import build_graph, load_repository_file
-from src.graph import render_order, topological_order
+from npm_reg import NpmRegistryError, fetch_direct_dependencies
+from graph import RepositoryError, render_dot, render_graph
+from graph import build_graph, load_repository_file
+from graph import render_order, topological_order
 import subprocess
 
 
