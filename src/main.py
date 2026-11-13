@@ -22,7 +22,6 @@ from graph import render_order, topological_order
 import subprocess
 
 
-# Имя единственной секции INI-файла и полный набор ключей в ней.
 SECTION = "app"
 FIELDS = (
     "package_name",
@@ -32,12 +31,10 @@ FIELDS = (
     "filter_substring",
 )
 
-# Допустимые значения repo_mode и границы max_depth.
 VALID_MODES = ("url", "file", "auto")
 MIN_DEPTH = 1
 MAX_DEPTH = 100
 
-# Имя пакета: буква/цифра на краях, внутри допустимы «.», «_», «-».
 _PACKAGE_NAME_RE = re.compile(
     r"^[A-Za-z0-9](?:[A-Za-z0-9._-]*[A-Za-z0-9])?$"
 )
@@ -190,8 +187,6 @@ def load_config(path: Path) -> AppConfig:
             "; ".join(f"missing required key: {key}" for key in missing)
         )
 
-    # Накопитель ошибок по значениям: валидируем каждый параметр,
-    # даже если предыдущий уже упал.
     errors: list[str] = []
 
     try:
@@ -206,9 +201,6 @@ def load_config(path: Path) -> AppConfig:
         errors.append(str(exc))
         repo_mode = "auto"
 
-    # repository зависит от repo_mode, поэтому проверяется после него;
-    # при невалидном repo_mode используем fallback «auto», чтобы всё
-    # равно получить и накопить ошибку repository.
     try:
         repository = _validate_repository(raw["repository"], repo_mode)
     except ConfigError as exc:
@@ -309,7 +301,7 @@ def _open_image(path: str) -> None:
     try:
         if sys.platform == "win32":
             import os
-            os.startfile(path)  # type: ignore[attr-defined]
+            os.startfile(path)
         elif sys.platform == "darwin":
             subprocess.run(["open", path], check=False)
         else:
