@@ -34,7 +34,11 @@ class Emulator:
         self.vfs_data = vfs_data
         self.root.title(f"VFS: {vfs_name}")
         self.root.geometry("800x600")
-        self.output = scrolledtext.ScrolledText(root, state='disabled', wrap='word')
+        self.output = scrolledtext.ScrolledText(
+            root,
+            state="disabled",
+            wrap="word",
+        )
         self.output.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
         input_frame = tk.Frame(root)
         input_frame.pack(fill=tk.X, padx=10, pady=(0, 10))

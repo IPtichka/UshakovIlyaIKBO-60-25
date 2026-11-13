@@ -322,53 +322,39 @@ def print_dependencies(
     for dep_name, dep_range in dependencies.items():
         print(f"  - {dep_name} ({dep_range})")
 
+def _is_file_mode(config: AppConfig) -> bool:
+    """True, если зависимости берутся из локального JSON-файла."""
+    if config.repo_mode == "file":
+        return True
+    if config.repo_mode != "auto":
+        return False
+    return Path(config.repository).is_file()
 
-def main(argv: list[str] | None = None) -> int:
-    """
-    Точка входа. Возвращает код процесса:
-    0 — успех, 2 — ошибка, 3 — репозиторий/граф.
-    """
-    args = build_parser().parse_args(argv)
-    try:
-        config = load_config(Path(args.config))
-    except ConfigError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 2
 
-    repository_path = Path(config.repository)
-    use_file = (
-        config.repo_mode == "file"
-        or (config.repo_mode == "auto" and repository_path.is_file())
-    )
-
-    if use_file:
-        try:
-            repository = load_repository_file(repository_path)
-        except RepositoryError as exc:
-            print(f"error: {exc}", file=sys.stderr)
-            return 3
+def _make_fetcher(config: AppConfig) -> DependencyFetcher:
+    """Собрать функцию получения зависимостей (file- или url-режим)."""
+    if _is_file_mode(config):
+        repository = load_repository_file(Path(config.repository))
 
         def fetch(name: str) -> dict[str, str]:
             return {dep: "*" for dep in repository.get(name, [])}
-    else:
-        cache: dict[str, dict[str, str]] = {}
 
-        def fetch(name: str) -> dict[str, str]:
-            if name not in cache:
-                cache[name] = fetch_direct_dependencies(
-                    config.repository, name
-                )
-            return cache[name]
-    try:
-        graph = build_graph(
-            root=config.package_name,
-            max_depth=config.max_depth,
-            filter_substring=config.filter_substring,
-            fetch=fetch,
-        )
-    except NpmRegistryError as exc:
-        print(f"error: {exc}", file=sys.stderr)
-        return 3
+        return fetch
+
+    cache: dict[str, dict[str, str]] = {}
+
+    def fetch(name: str) -> dict[str, str]:
+        if name not in cache:
+            cache[name] = fetch_direct_dependencies(
+                config.repository, name,
+            )
+        return cache[name]
+
+    return fetch
+
+
+def _emit_output(graph: Graph, args: argparse.Namespace) -> int:
+    """Напечатать или отрисовать граф согласно флагам CLI."""
     if args.order:
         order, broken = topological_order(graph)
         print(render_order(graph, order, broken))
@@ -381,6 +367,36 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     print(render_graph(graph))
     return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Точка входа. 0 — успех, 2 — конфиг, 3 — репозиторий/граф."""
+    args = build_parser().parse_args(argv)
+
+    try:
+        config = load_config(Path(args.config))
+    except ConfigError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        fetch = _make_fetcher(config)
+    except RepositoryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+
+    try:
+        graph = build_graph(
+            root=config.package_name,
+            max_depth=config.max_depth,
+            filter_substring=config.filter_substring,
+            fetch=fetch,
+        )
+    except NpmRegistryError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+
+    return _emit_output(graph, args)
 
 
 if __name__ == "__main__":
