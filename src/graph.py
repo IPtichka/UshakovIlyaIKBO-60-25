@@ -54,21 +54,66 @@ class Graph:
             self.cycles.append((src, dst))
 
 
-def load_repository_file(path: Path) -> dict[str, list[str]]:
-    """Загрузить тестовый репозиторий из JSON.
-    Формат: ``{"PACKAGE": ["DEP1", "DEP2"], ...}``. Имена пакетов —
-    произвольные непустые строки; в тестовых примерах используются
-    большие латинские буквы.
+def _read_json_file(path: Path) -> object:
+    """Прочитать JSON-файл по пути ``path`` и вернуть его содержимое.
+
+    Отсутствие файла, ошибка ввода-вывода и синтаксическая ошибка
+    JSON приводятся к единому ``RepositoryError`` с понятным
+    сообщением. Тип возвращаемого значения — ``object``: конкретную
+    структуру валидирует вызывающий код.
     """
     if not path.exists():
         raise RepositoryError(f"repository file not found: {path}")
     try:
         with path.open("r", encoding="utf-8") as stream:
-            data = json.load(stream)
+            return json.load(stream)
     except OSError as exc:
         raise RepositoryError(f"failed to read {path}: {exc}") from exc
     except json.JSONDecodeError as exc:
         raise RepositoryError(f"failed to parse {path}: {exc}") from exc
+
+
+def _require_non_empty_str(value: object, message: str) -> None:
+    """Проверить, что ``value`` — непустая строка.
+
+    При нарушении бросает ``RepositoryError`` с текстом ``message``;
+    текст формирует вызывающий код, чтобы сообщение содержало
+    контекст (имя пакета, зависимости и т.п.).
+    """
+    if not isinstance(value, str) or not value:
+        raise RepositoryError(message)
+
+
+def _validate_dependencies(name: str, deps: object) -> list[str]:
+    """Провалидировать список зависимостей пакета ``name``.
+
+    ``deps`` должен быть списком непустых строк. При нарушении
+    бросает ``RepositoryError`` с упоминанием пакета. Возвращает
+    новый список, чтобы вызывающий код не зависел от исходного
+    объекта из JSON.
+    """
+    if not isinstance(deps, list):
+        raise RepositoryError(
+            f"dependencies of {name!r} must be a list of strings"
+        )
+    for dep in deps:
+        _require_non_empty_str(
+            dep,
+            f"dependency names of {name!r} must be non-empty strings",
+        )
+    return list(deps)
+
+
+def load_repository_file(path: Path) -> dict[str, list[str]]:
+    """Загрузить тестовый репозиторий из JSON-файла ``path``.
+
+    Ожидаемый формат — ``{"PACKAGE": ["DEP1", "DEP2"], ...}``.
+    Имена пакетов и зависимостей должны быть непустыми строками,
+    корень файла — JSON-объектом. При любом нарушении формата
+    бросает ``RepositoryError``. Возвращает словарь «пакет — список
+    зависимостей», пригодный для дальнейшей работы графа.
+    """
+    data = _read_json_file(path)
 
     if not isinstance(data, dict):
         raise RepositoryError(
@@ -77,21 +122,11 @@ def load_repository_file(path: Path) -> dict[str, list[str]]:
 
     result: dict[str, list[str]] = {}
     for name, deps in data.items():
-        if not isinstance(name, str) or not name:
-            raise RepositoryError(
-                f"package names must be non-empty strings: {name!r}"
-            )
-        if not isinstance(deps, list):
-            raise RepositoryError(
-                f"dependencies of {name!r} must be a list of strings"
-            )
-        for dep in deps:
-            if not isinstance(dep, str) or not dep:
-                raise RepositoryError(
-                    f"dependency names of {name!r} "
-                    f"must be non-empty strings"
-                )
-        result[name] = list(deps)
+        _require_non_empty_str(
+            name,
+            f"package names must be non-empty strings: {name!r}",
+        )
+        result[name] = _validate_dependencies(name, deps)
     return result
 
 

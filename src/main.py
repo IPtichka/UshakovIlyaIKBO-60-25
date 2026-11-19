@@ -18,6 +18,7 @@ from urllib.parse import urlparse
 from npm_reg import NpmRegistryError, fetch_direct_dependencies
 from graph import RepositoryError, render_dot, render_graph
 from graph import build_graph, load_repository_file
+from graph import Graph, DependencyFetcher
 from graph import render_order, topological_order
 import subprocess
 
@@ -162,13 +163,13 @@ def _read_parser(path: Path) -> configparser.ConfigParser:
     return parser
 
 
-def load_config(path: Path) -> AppConfig:
-    """Загрузить и провалидировать INI-файл по пути ``path``.
+def _load_raw_fields(path: Path) -> dict[str, str]:
+    """Прочитать INI-файл и вернуть значения обязательных полей.
 
-    Структурные ошибки (нет файла, нет секции, нет ключа) прерывают
-    загрузку сразу. Ошибки в значениях собираются в список, чтобы
-    пользователь увидел их все за один запуск, и лишь затем бросается
-    единый ConfigError.
+    Проверяет наличие файла, секции ``[app]`` и всех ключей из
+    ``FIELDS``. Любая структурная ошибка сразу прерывает загрузку
+    через ``ConfigError``. Возвращает словарь «ключ — сырое
+    значение» только для найденных полей.
     """
     if not path.exists():
         raise ConfigError(f"configuration file not found: {path}")
@@ -180,13 +181,37 @@ def load_config(path: Path) -> AppConfig:
         )
 
     section = parser[SECTION]
-    raw = {key: section.get(key) for key in FIELDS}
-    missing = [key for key, value in raw.items() if value is None]
+    raw: dict[str, str] = {}
+    missing: list[str] = []
+
+    for key in FIELDS:
+        value = section.get(key)
+        if value is None:
+            missing.append(key)
+        else:
+            raw[key] = value
+
     if missing:
         raise ConfigError(
-            "; ".join(f"missing required key: {key}" for key in missing)
+            "; ".join(
+                f"missing required key: {key}" for key in missing
+            )
         )
 
+    return raw
+
+
+def _validate_package_and_mode(
+    raw: dict[str, str],
+) -> tuple[str, str, list[str]]:
+    """Провалидировать ``package_name`` и ``repo_mode``.
+
+    Возвращает тройку ``(package_name, repo_mode, errors)``. При
+    ошибке соответствующее значение подменяется безопасным
+    дефолтом (пустая строка или ``"auto"``), а текст ошибки
+    добавляется в список — чтобы пользователь увидел все проблемы
+    за один запуск.
+    """
     errors: list[str] = []
 
     try:
@@ -201,8 +226,27 @@ def load_config(path: Path) -> AppConfig:
         errors.append(str(exc))
         repo_mode = "auto"
 
+    return package_name, repo_mode, errors
+
+
+def _validate_rest(
+    raw: dict[str, str],
+    repo_mode: str,
+) -> tuple[str, int, str, list[str]]:
+    """Провалидировать оставшиеся поля конфигурации.
+
+    Проверяет ``repository`` (с учётом уже определённого
+    ``repo_mode``), ``max_depth`` и ``filter_substring``. Ошибки
+    не бросаются сразу, а собираются в список; при ошибке значение
+    подменяется безопасным дефолтом, чтобы продолжить проверку
+    остальных полей.
+    """
+    errors: list[str] = []
+
     try:
-        repository = _validate_repository(raw["repository"], repo_mode)
+        repository = _validate_repository(
+            raw["repository"], repo_mode,
+        )
     except ConfigError as exc:
         errors.append(str(exc))
         repository = ""
@@ -218,6 +262,26 @@ def load_config(path: Path) -> AppConfig:
     except ConfigError as exc:
         errors.append(str(exc))
         filter_substring = ""
+
+    return repository, max_depth, filter_substring, errors
+
+
+def load_config(path: Path) -> AppConfig:
+    """Загрузить и провалидировать INI-файл по пути ``path``.
+
+    Структурные ошибки (нет файла, нет секции, нет ключа) прерывают
+    загрузку сразу. Ошибки в значениях собираются в общий список,
+    чтобы пользователь увидел их все за один запуск, и лишь затем
+    бросается единый ``ConfigError``.
+    """
+    raw = _load_raw_fields(path)
+
+    package_name, repo_mode, errors = _validate_package_and_mode(raw)
+
+    repository, max_depth, filter_substring, rest_errors = _validate_rest(
+        raw, repo_mode,
+    )
+    errors.extend(rest_errors)
 
     if errors:
         raise ConfigError("; ".join(errors))
