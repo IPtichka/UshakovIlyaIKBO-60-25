@@ -155,7 +155,7 @@ def main():
             print(f"Ошибка: конфиг не найден: {args.config}", file=sys.stderr)
             sys.exit(1)
         except et.ParseError as e:
-            print(f"Ошибка: некорректный XML в {args.config}: {e}", file=sys.stderr)
+            print(f"Ошибка: bad XML в {args.config}: {e}", file=sys.stderr)
             sys.exit(1)
 
     
